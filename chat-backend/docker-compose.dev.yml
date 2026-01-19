@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7-jammy
+    container_name: nestjs-mongodb-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: nestjs_user
+      MONGO_INITDB_ROOT_PASSWORD: nestjs_password
+      MONGO_INITDB_DATABASE: nestjs_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_dev_data:/data/db
+    networks:
+      - nestjs-dev-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Database
+  postgresql:
+    image: postgres:15-alpine
+    container_name: nestjs-postgresql-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nestjs_user
+      POSTGRES_PASSWORD: nestjs_password
+      POSTGRES_DB: nestjs_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_dev_data:/var/lib/postgresql/data
+    networks:
+      - nestjs-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nestjs_user -d nestjs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NestJS Application (Development)
+  nestjs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nestjs-app-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      # MongoDB Configuration
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_NAME: nestjs_db
+      MONGODB_USER: nestjs_user
+      MONGODB_PASSWORD: nestjs_password
+      MONGODB_URL: mongodb://nestjs_user:nestjs_password@mongodb:27017/nestjs_db?authSource=admin
+      # PostgreSQL Configuration
+      POSTGRES_HOST: postgresql
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: nestjs_db
+      POSTGRES_USER: nestjs_user
+      POSTGRES_PASSWORD: nestjs_password
+      DATABASE_URL: postgresql://nestjs_user:nestjs_password@postgresql:5432/nestjs_db
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+    networks:
+      - nestjs-dev-network
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.build.json:/app/tsconfig.build.json:ro
+      - ./nest-cli.json:/app/nest-cli.json:ro
+      - ./prisma:/app/prisma:ro
+      # Mount logs
+      - ./logs:/app/logs
+      # Exclude node_modules from host
+      - /app/node_modules
+
+  # Mongo Express (Optional - for database management)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: nestjs-mongo-express-dev
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: nestjs_user
+      ME_CONFIG_MONGODB_ADMINPASSWORD: nestjs_password
+      ME_CONFIG_MONGODB_URL: mongodb://nestjs_user:nestjs_password@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongodb
+    networks:
+      - nestjs-dev-network
+
+# Networks
+networks:
+  nestjs-dev-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  mongodb_dev_data:
+    driver: local
+  postgresql_dev_data:
+    driver: local

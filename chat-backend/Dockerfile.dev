@@ -1,0 +1,24 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (dev + production)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Set dummy DATABASE_URL for build time
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+
+# Generate Prisma Client
+RUN npx prisma generate
+
+# Expose port
+EXPOSE 3000
+
+# Start the application in development mode with hot reload
+CMD ["npm", "run", "start:dev"]
