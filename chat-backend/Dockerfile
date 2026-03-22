@@ -20,14 +20,15 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files and dependencies from builder so Prisma CLI is available
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
 
-# Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
-
-# Copy built application from builder stage
+# Copy built application and Prisma files required by migrate deploy
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/src/generated ./src/generated
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
@@ -38,11 +39,11 @@ RUN chown -R nestjs:nodejs /app
 USER nestjs
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3002
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/ || exit 1
+  CMD wget -qO- http://localhost:3002/ || exit 1
 
 # Start the application
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main.js"]

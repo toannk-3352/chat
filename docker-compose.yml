@@ -1,0 +1,102 @@
+services:
+  frontend:
+    build:
+      context: ./chat-frontend
+      dockerfile: Dockerfile.dev
+    container_name: chat-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NODE_ENV: development
+      API_URL: http://backend:3002
+      SESSION_SECRET_KEY: 813940dd0d18c7be271c86d89a995809710586e85b9277ada10483edcf40c52d
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:3002
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./chat-frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - chat-network
+
+  backend:
+    build:
+      context: ./chat-backend
+      dockerfile: Dockerfile.dev
+    container_name: chat-backend
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      MONGODB_URL: mongodb://nestjs_user:nestjs_password@mongodb:27017/nestjs_db?authSource=admin
+      DATABASE_URL: postgresql://nestjs_user:nestjs_password@postgresql:5432/nestjs_db
+      JWT_SECRET: your-super-secret-jwt-key
+      JWT_EXPIRATION_TIME: 24
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:dev"
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./chat-backend:/app
+      - /app/node_modules
+    networks:
+      - chat-network
+
+  mongodb:
+    image: mongo:7-jammy
+    container_name: chat-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: nestjs_user
+      MONGO_INITDB_ROOT_PASSWORD: nestjs_password
+      MONGO_INITDB_DATABASE: nestjs_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chat-network
+
+  postgresql:
+    image: postgres:15-alpine
+    container_name: chat-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nestjs_user
+      POSTGRES_PASSWORD: nestjs_password
+      POSTGRES_DB: nestjs_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nestjs_user -d nestjs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chat-network
+
+networks:
+  chat-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  postgresql_data:

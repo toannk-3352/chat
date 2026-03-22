@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { getChatsAction } from "@/lib/actions/chat";
+import { useRouter, useParams } from "next/navigation";
+import { Search } from "lucide-react";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "./ui/input-group";
 
 type Participant = {
   id: number;
@@ -9,10 +12,17 @@ type Participant = {
   email: string;
 };
 
+type Message = {
+  sender: number;
+  content: string;
+  timestamp: Date | string;
+};
+
 type Chat = {
   _id: string;
+  title?: string;
   participants: Participant[];
-  messages: any[];
+  messages: Message[];
   createdAt?: string;
 };
 
@@ -20,6 +30,10 @@ export default function ChatList() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
+  const params = useParams();
+  const activeChatId = params.id as string;
 
   useEffect(() => {
     loadChats();
@@ -31,17 +45,13 @@ export default function ChatList() {
       setError(null);
       const data = await getChatsAction();
       console.log("Chats data:", data);
-      setChats(data);
+      setChats(data || []);
     } catch (err) {
       setError("Failed to load chats");
       console.error("Error loading chats:", err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const getOtherParticipants = (participants: Participant[], currentUserId?: number) => {
-    return participants.filter(p => p.id !== currentUserId);
   };
 
   const getChatTitle = (participants: Participant[]) => {
@@ -59,17 +69,26 @@ export default function ChatList() {
       .slice(0, 2);
   };
 
+  const handleChatClick = (chatId: string) => {
+    router.push(`/chat/${chatId}`);
+  };
+
+  const filteredChats = chats.filter((chat) => {
+    const chatTitle = chat.title || getChatTitle(chat.participants);
+    return chatTitle.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="chat-panel flex items-center justify-center rounded-3xl p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 text-red-600 rounded-md">
+      <div className="chat-panel rounded-3xl p-4 text-destructive">
         {error}
         <button
           onClick={loadChats}
@@ -83,7 +102,7 @@ export default function ChatList() {
 
   if (chats.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="chat-panel flex h-full flex-col items-center justify-center rounded-3xl p-8 text-center text-muted-foreground">
         <p className="text-lg font-medium">No chats yet</p>
         <p className="text-sm mt-2">Start a conversation to see it here</p>
       </div>
@@ -91,68 +110,88 @@ export default function ChatList() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b bg-white">
-        <h2 className="text-xl font-bold text-gray-900">Chats</h2>
-        <p className="text-sm text-gray-500">{chats.length} conversation{chats.length !== 1 ? 's' : ''}</p>
+    <div className="chat-panel flex h-full w-full flex-col rounded-3xl">
+      <div className="border-b border-white/60 px-5 pb-4 pt-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Inbox</h2>
+            <p className="text-xs text-muted-foreground">
+              {filteredChats.length} active {filteredChats.length === 1 ? "room" : "rooms"}
+            </p>
+          </div>
+          <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            Live
+          </div>
+        </div>
+        <div className="mt-4">
+          <InputGroup className="bg-white/70">
+            <InputGroupAddon align="inline-start">
+              <Search className="w-4 h-4" />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="text"
+              placeholder="Search conversations"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </InputGroup>
+        </div>
       </div>
-      
-      <div className="flex-1 overflow-y-auto bg-gray-50">
-        {chats.map((chat) => {
+
+      <div className="flex-1 overflow-y-auto px-2 pb-4 pt-2">
+        {filteredChats.map((chat) => {
           const otherParticipants = chat.participants;
-          const chatTitle = getChatTitle(otherParticipants);
-          const lastMessage = chat.messages && chat.messages.length > 0 
-            ? chat.messages[chat.messages.length - 1] 
-            : null;
+          const chatTitle = chat.title || getChatTitle(otherParticipants);
+          const lastMessage =
+            chat.messages && chat.messages.length > 0
+              ? chat.messages[chat.messages.length - 1]
+              : null;
 
           return (
             <div
               key={chat._id}
-              className="p-4 border-b bg-white hover:bg-gray-50 cursor-pointer transition-colors"
+              onClick={() => handleChatClick(chat._id)}
+              className={`mx-2 mb-2 flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/80 ${
+                activeChatId === chat._id ? "bg-white/90 shadow-sm" : "bg-white/40"
+              }`}
             >
-              <div className="flex items-start gap-3">
-                {/* Avatar */}
-                <div className="flex-shrink-0">
-                  {otherParticipants.length === 1 ? (
-                    <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
-                      {getInitials(otherParticipants[0].name)}
-                    </div>
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-white flex items-center justify-center font-semibold text-xs">
-                      {otherParticipants.length}+
-                    </div>
-                  )}
-                </div>
-
-                {/* Chat Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between">
-                    <h3 className="font-semibold text-gray-900 truncate">
-                      {chatTitle}
-                    </h3>
-                    {lastMessage && (
-                      <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                        {new Date(lastMessage.timestamp).toLocaleDateString()}
-                      </span>
-                    )}
+              {/* Avatar */}
+              <div className="flex-shrink-0">
+                {otherParticipants.length === 1 ? (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-semibold shadow-sm">
+                    {getInitials(otherParticipants[0].name)}
                   </div>
-                  
-                  {/* Participants emails */}
-                  <p className="text-sm text-gray-500 truncate">
-                    {otherParticipants.map(p => p.email).join(", ")}
-                  </p>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-emerald-500 text-primary-foreground font-semibold text-sm">
+                    {otherParticipants.length}
+                  </div>
+                )}
+              </div>
 
-                  {/* Last message preview */}
-                  {lastMessage ? (
-                    <p className="text-sm text-gray-600 truncate mt-1">
-                      {lastMessage.content}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic mt-1">
-                      No messages yet
-                    </p>
+              {/* Chat Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline justify-between mb-0.5">
+                  <h3 className="text-sm font-semibold truncate text-foreground">{chatTitle}</h3>
+                  {lastMessage && (
+                    <span className="text-[11px] text-muted-foreground ml-2 flex-shrink-0">
+                      {new Date(lastMessage.timestamp).toLocaleDateString(
+                        "en-US",
+                        { month: "short", day: "numeric" }
+                      )}
+                    </span>
                   )}
                 </div>
+
+                {/* Last message preview */}
+                {lastMessage ? (
+                  <p className="text-sm text-muted-foreground truncate">
+                    {lastMessage.content}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground/60 italic truncate">
+                    No messages yet
+                  </p>
+                )}
               </div>
             </div>
           );

@@ -40,4 +40,49 @@ export class UserService {
       email: updatedUser.email,
     };
   }
+
+  async searchUsers(
+    query: string,
+    currentUserId: number,
+  ): Promise<{ id: number; name: string; email: string }[]> {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        AND: [
+          {
+            NOT: {
+              id: currentUserId,
+            },
+          },
+          {
+            OR: [
+              {
+                name: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                email: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+      take: 10,
+    });
+
+    return users;
+  }
 }

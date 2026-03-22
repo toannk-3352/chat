@@ -1,7 +1,7 @@
 "use server";
 
 import { getSession } from "../session";
-import { createChat, getChats } from "./../api/api";
+import { createChat, getChats, getChatDetails } from "./../api/api";
 
 export async function createChatAction(participants: string[]) {
   const session = await getSession();
@@ -33,6 +33,22 @@ export async function getChatsAction() {
     return data;
   } catch (error) {
     console.error("Get chats error:", error);
+    throw error;
+  }
+}
+
+export async function getChatDetailsAction(chatId: string) {
+  const session = await getSession();
+
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  try {
+    const data = await getChatDetails(session.accessToken, chatId);
+    return data;
+  } catch (error) {
+    console.error("Get chat details error:", error);
     throw error;
   }
 }

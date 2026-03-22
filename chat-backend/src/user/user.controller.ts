@@ -5,6 +5,7 @@ import {
   Patch,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -24,5 +25,12 @@ export class UserController {
   @Patch('me')
   update(@Request() req: any, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(+req.user.id, updateUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('search')
+  searchUsers(@Request() req: any, @Query('q') query: string) {
+    const currentUserId = +req.user.id;
+    return this.userService.searchUsers(query, currentUserId);
   }
 }

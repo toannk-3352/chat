@@ -33,6 +33,7 @@ export async function signIn(
 
   await createSession({
     user: {
+      id: data.id,
       email: data.email,
       name: data.name,
     },

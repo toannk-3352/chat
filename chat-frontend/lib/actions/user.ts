@@ -1,6 +1,6 @@
 "use server";
 
-import { getUserProfile, updateUserProfile } from "../api/api";
+import { getUserProfile, updateUserProfile, searchUsers } from "../api/api";
 import { getSession } from "../session";
 import { UpdateProfileFormState } from "../types/formState";
 import { UpdateProfileSchema } from "../zodSchemas/updateProfileSchema";
@@ -65,5 +65,21 @@ export async function updateProfile(
     return {
       message: "Failed to update profile",
     };
+  }
+}
+
+export async function searchUsersAction(query: string) {
+  const session = await getSession();
+  
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  try {
+    const users = await searchUsers(session.accessToken, query);
+    return users;
+  } catch (error) {
+    console.error("Search users error:", error);
+    throw error;
   }
 }

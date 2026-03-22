@@ -44,54 +44,61 @@ export default function Header({ user }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-gray-900">
-              Chat App
-            </Link>
+    <header className="relative z-20">
+      <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-4">
+        <Link href="/" className="group flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25">
+            CW
+          </span>
+          <div>
+            <p className="text-lg font-semibold leading-tight text-foreground">Chat Workspace</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Live rooms</p>
           </div>
+        </Link>
 
-          <div className="flex items-center">
-            {user ? (
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
-                  aria-label="User menu"
-                >
-                  {getInitials(user.name)}
-                </button>
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-2 rounded-full border border-white/60 bg-white/70 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur sm:flex">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" />
+            Connected
+          </div>
+          {user ? (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-white/80 text-sm font-semibold text-foreground shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-md"
+                aria-label="User menu"
+              >
+                {getInitials(user.name)}
+              </button>
 
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border">
-                    <div className="px-4 py-2 border-b">
-                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                    </div>
-                    <Link
-                      href="/user"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      Profile
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
-                    >
-                      Logout
-                    </button>
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-3 w-52 rounded-2xl border border-white/70 bg-white/95 py-2 shadow-xl backdrop-blur">
+                  <div className="px-4 py-2">
+                    <p className="text-sm font-semibold text-foreground">{user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
-                )}
-              </div>
-            ) : (
-              <Link href="/auth/signin">
-                <Button>Login</Button>
-              </Link>
-            )}
-          </div>
+                  <div className="h-px bg-border/60" />
+                  <Link
+                    href="/user"
+                    className="block px-4 py-2 text-sm text-foreground/80 hover:text-foreground"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-destructive hover:text-destructive/80"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link href="/auth/signin">
+              <Button className="rounded-full px-5">Login</Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>

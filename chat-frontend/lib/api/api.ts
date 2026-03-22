@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3002";
+const API_URL = process.env.API_URL || "http://localhost:3002";
 
 export const login = async ({
   email,
@@ -127,6 +127,35 @@ export const getChats = async (token: string) => {
     });
     return response.data;
   } catch (error) {
+    throw error;
+  }
+};
+
+export const getChatDetails = async (token: string, chatId: string) => {
+  try {
+    const response = await axios.get(`${API_URL}/chat/${chatId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Get chat details error:", error);
+    throw error;
+  }
+};
+
+export const searchUsers = async (token: string, query: string) => {
+  try {
+    const response = await axios.get(`${API_URL}/users/search`, {
+      params: { q: query },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Search users error:", error);
     throw error;
   }
 };

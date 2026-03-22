@@ -9,7 +9,6 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
-import { UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({
@@ -26,6 +25,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private jwtService: JwtService,
   ) {}
 
+  private getSocketUserId(client: Socket) {
+    const userId = client.data.user?.sub ?? client.data.user?.userId;
+
+    if (typeof userId !== 'number') {
+      throw new Error('Invalid socket user');
+    }
+
+    return userId;
+  }
+
   async handleConnection(client: Socket) {
     try {
       const token =
@@ -40,7 +49,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const payload = await this.jwtService.verifyAsync(token);
       client.data.user = payload;
 
-      console.log(`Client connected: ${client.id}, User ID: ${payload.userId}`);
+      console.log(`Client connected: ${client.id}, User ID: ${payload.sub}`);
     } catch (error) {
       console.error('Connection authentication failed:', error);
       client.disconnect();
@@ -58,7 +67,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const { chatId } = data;
     await client.join(chatId);
-    console.log(`User ${client.data.user.userId} joined chat ${chatId}`);
+    console.log(`User ${this.getSocketUserId(client)} joined chat ${chatId}`);
     return { success: true, chatId };
   }
 
@@ -69,7 +78,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const { chatId } = data;
     await client.leave(chatId);
-    console.log(`User ${client.data.user.userId} left chat ${chatId}`);
+    console.log(`User ${this.getSocketUserId(client)} left chat ${chatId}`);
     return { success: true, chatId };
   }
 
@@ -80,18 +89,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     try {
       const { chatId, content } = data;
-      const userId = client.data.user.userId;
+      const userId = this.getSocketUserId(client);
 
       if (!chatId || !content) {
         return { success: false, error: 'Missing chatId or content' };
       }
 
       // Lưu message vào database
-      const message = await this.chatService.addMessage(
-        chatId,
-        userId,
+      const updatedChat = await this.chatService.addMessage(chatId, userId, {
         content,
-      );
+      });
+      const lastMessage =
+        updatedChat.messages[updatedChat.messages.length - 1];
 
       // Broadcast message đến tất cả users trong chat room
       this.server.to(chatId).emit('newMessage', {
@@ -99,11 +108,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         message: {
           sender: userId,
           content,
-          timestamp: message.timestamp,
+          timestamp: lastMessage?.timestamp,
         },
       });
 
-      return { success: true, message };
+      return { success: true, message: lastMessage };
     } catch (error) {
       console.error('Error sending message:', error);
       return { success: false, error: error.message };
@@ -116,7 +125,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { chatId: string; isTyping: boolean },
   ) {
     const { chatId, isTyping } = data;
-    const userId = client.data.user.userId;
+    const userId = this.getSocketUserId(client);
 
     // Broadcast typing indicator đến những user khác trong chat
     client.to(chatId).emit('userTyping', {
