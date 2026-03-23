@@ -134,4 +134,59 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       isTyping,
     });
   }
+
+  @SubscribeMessage('videoCallOffer')
+  handleVideoCallOffer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; offer: RTCSessionDescriptionInit },
+  ) {
+    const userId = this.getSocketUserId(client);
+
+    client.to(data.chatId).emit('videoCallOffer', {
+      chatId: data.chatId,
+      senderId: userId,
+      offer: data.offer,
+    });
+  }
+
+  @SubscribeMessage('videoCallAnswer')
+  handleVideoCallAnswer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; answer: RTCSessionDescriptionInit },
+  ) {
+    const userId = this.getSocketUserId(client);
+
+    client.to(data.chatId).emit('videoCallAnswer', {
+      chatId: data.chatId,
+      senderId: userId,
+      answer: data.answer,
+    });
+  }
+
+  @SubscribeMessage('iceCandidate')
+  handleIceCandidate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; candidate: RTCIceCandidateInit },
+  ) {
+    const userId = this.getSocketUserId(client);
+
+    client.to(data.chatId).emit('iceCandidate', {
+      chatId: data.chatId,
+      senderId: userId,
+      candidate: data.candidate,
+    });
+  }
+
+  @SubscribeMessage('endVideoCall')
+  handleEndVideoCall(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string },
+  ) {
+    const userId = this.getSocketUserId(client);
+
+    client.to(data.chatId).emit('endVideoCall', {
+      chatId: data.chatId,
+      senderId: userId,
+    });
+  }
 }
